@@ -1,0 +1,14 @@
+{
+  "students": [
+    {
+      "id": 1,
+      "name": "virat kohli",
+      "branch": "cricket"
+    },
+    {
+      "id": 2,
+      "name": "virat kohli",
+      "branch": "cvbfd"
+    }
+  ]
+}

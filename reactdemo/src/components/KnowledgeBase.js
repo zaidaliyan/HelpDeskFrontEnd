@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import Header from './Header';
-import Footer from './Footer';
+import { useNavigate } from 'react-router-dom';
 
 const KnowledgeBase = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,21 +13,35 @@ const KnowledgeBase = () => {
   const [newArticleCategory, setNewArticleCategory] = useState('');
   const [newArticleTags, setNewArticleTags] = useState('');
   const [allArticles, setAllArticles] = useState([]);
-
+  const [token, setToken] = useState('');
+  const navigate = useNavigate();
+  
   useEffect(() => {
-    // Fetch initial search results on component mount
+    // Fetch initial search results and all articles on component mount
     fetchSearchResults();
-  }, []);
+    fetchAllArticles();
+    // Retrieve token from localStorage
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+    } else {
+      // Redirect to login page if token is not present
+      navigate('/login');
+    }
+  }, [navigate]);
 
   useEffect(() => {
-    // Fetch all articles on component mount
-    fetchAllArticles();
-  }, []);
+    // Fetch all articles when the token changes
+    if (token) {
+      fetchAllArticles();
+    }
+  }, [token]);
 
   const fetchSearchResults = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/knowledge-base/search', {
-        params: { q: searchTerm }
+        params: { q: searchTerm },
+        headers: { Authorization: `Bearer ${token}` }
       });
       setSearchResults(response.data);
     } catch (error) {
@@ -38,7 +51,9 @@ const KnowledgeBase = () => {
 
   const fetchAllArticles = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/knowledge-base/');
+      const response = await axios.get('http://localhost:3001/api/knowledge-base/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setAllArticles(response.data);
     } catch (error) {
       console.error('Error fetching all articles:', error);
@@ -54,6 +69,30 @@ const KnowledgeBase = () => {
     fetchSearchResults();
   };
 
+
+  const handleFetchAllArticles = async () => {
+    // Fetch all articles
+    try {
+      const response = await axios.get('http://localhost:3001/api/knowledge-base/',{headers: { Authorization: `Bearer ${token}` }});
+      setAllArticles(response.data);
+    } catch (error) {
+      console.error('Error fetching all articles:', error);
+    }
+  };
+
+  const categorizeArticles = () => {
+    // Group articles by category
+    const categorizedArticles = {};
+    allArticles.forEach(article => {
+      if (categorizedArticles[article.category]) {
+        categorizedArticles[article.category].push(article);
+      } else {
+        categorizedArticles[article.category] = [article];
+      }
+    });
+    return categorizedArticles;
+  };
+
   const handleAddArticle = async () => {
     try {
       // Make a POST request to add the new article
@@ -62,7 +101,7 @@ const KnowledgeBase = () => {
         content: newArticleContent,
         category: newArticleCategory,
         tags: newArticleTags.split(',').map(tag => tag.trim())
-      });
+      },{headers: { Authorization: `Bearer ${token}` }});
       // Fetch updated search results after adding the article
       fetchSearchResults();
       // Clear the input fields
@@ -83,7 +122,7 @@ const KnowledgeBase = () => {
       await axios.put(`http://localhost:3001/api/knowledge-base/${articleToEdit._id}`, {
         title: newArticleTitle,
         content: newArticleContent
-      });
+      },{headers: { Authorization: `Bearer ${token}` }});
       // Fetch updated search results after editing the article
       fetchSearchResults();
       // Clear the input fields
@@ -100,7 +139,9 @@ const KnowledgeBase = () => {
   const handleDeleteArticle = async (articleId) => {
     try {
       // Make a DELETE request to delete the article
-      await axios.delete(`http://localhost:3001/api/knowledge-base/${articleId}`);
+      await axios.delete(`http://localhost:3001/api/knowledge-base/${articleId}`, {
+        headers: { Authorization: `Bearer ${token}` } // Include the token in the request headers
+      });
       // Fetch updated search results after deleting the article
       fetchSearchResults();
     } catch (error) {
@@ -116,32 +157,10 @@ const KnowledgeBase = () => {
     setIsEditingArticle(true);
   };
 
-  const handleFetchAllArticles = async () => {
-    // Fetch all articles
-    try {
-      const response = await axios.get('http://localhost:3001/api/knowledge-base/');
-      setAllArticles(response.data);
-    } catch (error) {
-      console.error('Error fetching all articles:', error);
-    }
-  };
-
-  const categorizeArticles = () => {
-    // Group articles by category
-    const categorizedArticles = {};
-    allArticles.forEach(article => {
-      if (categorizedArticles[article.category]) {
-        categorizedArticles[article.category].push(article);
-      } else {
-        categorizedArticles[article.category] = [article];
-      }
-    });
-    return categorizedArticles;
-  };
+  
 
   return (
     <>
-      <Header />
       <div className="container py-5">
         <h1>Welcome to HelpDesk Pro</h1>
         <form onSubmit={handleSearchSubmit} className="mb-3">
@@ -302,7 +321,6 @@ const KnowledgeBase = () => {
           </div>
         )}
       </div>
-      <Footer />
     </>
   );
 };
